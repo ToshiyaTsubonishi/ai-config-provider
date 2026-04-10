@@ -1,1 +1,1 @@
-{"name":"test-mcp","scripts":{"build":"echo 'built'"}}
+{"name":"test-mcp","type":"module","scripts":{"build":"echo 'built'"}}

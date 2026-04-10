@@ -9,6 +9,7 @@ RUN npm ci || npm install
 # Copy source and build
 COPY tsconfig.json ./
 COPY src ./src
+COPY scripts ./scripts
 RUN npm run build
 
 FROM node:20-slim AS runner
@@ -19,13 +20,10 @@ WORKDIR /app
 COPY --from=builder /app/package.json /app/package-lock.json* ./
 RUN npm ci --omit=dev || npm install --omit=dev
 COPY --from=builder /app/dist ./dist
-
-# In Cloud Run, ai-config needs to be mounted or copied here.
-# Assuming you will copy it via CI/CD, you might need:
-# COPY ../ai-config /ai-config
-# ENV AI_CONFIG_DIR=/ai-config
+COPY provider-bundle ./provider-bundle
 
 ENV PORT=8080
+ENV AI_CONFIG_PROVIDER_DIR=/app/provider-bundle
 EXPOSE 8080
 
 CMD ["node", "dist/index.js"]
