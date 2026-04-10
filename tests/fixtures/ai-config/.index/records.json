@@ -1,0 +1,23 @@
+[
+  {
+    "id": "skill:test-skill",
+    "name": "test-skill",
+    "description": "A test skill",
+    "source_path": "skills/custom/test-skill/SKILL.md",
+    "tool_kind": "skill",
+    "metadata": {
+      "layer": "custom"
+    }
+  },
+  {
+    "id": "mcp:test-mcp",
+    "name": "test-mcp",
+    "description": "A test MCP server",
+    "source_path": "skills/custom/test-mcp",
+    "tool_kind": "mcp_server",
+    "invoke": {
+      "command": "node",
+      "args": ["index.js"]
+    }
+  }
+]
