@@ -88,3 +88,19 @@ gcloud run deploy ai-config-provider \
 ```
 
 Cloud Run readiness は provider bundle の存在と selector 接続状態を見ます。selector が一時的に落ちても local `records.json` があれば fallback できます。
+
+Open WebUI の `TOOL_SERVER_CONNECTIONS` は OpenAPI/MCPO protocol を前提にしているので、Cloud Run 上で Open WebUI から使うときは `ai-config-provider` の `/mcp` をそのまま登録せず、別の MCPO service で `/openapi.json` 化してから接続します。
+
+例:
+
+```bash
+gcloud run deploy ai-config-provider-mcpo \
+  --image ghcr.io/open-webui/mcpo:v0.0.20 \
+  --region REGION \
+  --platform managed \
+  --port 8080 \
+  --set-env-vars AI_CONFIG_PROVIDER_MCP_URL=https://ai-config-provider-xxxxx.run.app/mcp \
+  --set-secrets MCPO_API_KEY=MCPO_API_KEY:latest
+```
+
+そのうえで Open WebUI には `https://ai-config-provider-mcpo-xxxxx.run.app/openapi.json` を bearer 認証つき tool server として登録します。Cloud Run 全体の wiring は `../ai-config/deploy/cloudrun/README.md` を参照してください。
