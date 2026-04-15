@@ -35,3 +35,13 @@ export interface SelectorStatus {
   readyUrl?: string;
   detail?: unknown;
 }
+
+export interface ProviderBundleMetadata {
+  schema_version: number;
+  generated_at: string;
+  source_ai_config_dir: string;
+  source_ai_config_commit_sha?: string;
+  record_count: number;
+  records_sha256: string;
+  bundle_version: string;
+}

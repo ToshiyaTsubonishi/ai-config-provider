@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-15T00:00:00.000Z",
+  "source_ai_config_dir": "/fixtures/ai-config",
+  "source_ai_config_commit_sha": "fixture-ai-config-sha",
+  "record_count": 2,
+  "records_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "bundle_version": "fixture-bundle-v1"
+}

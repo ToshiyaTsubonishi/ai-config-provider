@@ -120,4 +120,28 @@ describe("ai-config-provider tools", () => {
       },
     );
   });
+
+  it("readiness payload includes provider bundle metadata and provenance when configured", async () => {
+    const payload = await import("../src/server.js").then(({ buildReadinessPayload }) =>
+      buildReadinessPayload(
+        createResolver({
+          AI_CONFIG_DEPLOY_COMMIT_SHA: "provider-sha",
+          AI_CONFIG_DEPLOY_IMAGE: "example.com/provider@sha256:abc",
+          AI_CONFIG_PROVIDER_BUNDLE_VERSION: "bundle-v1",
+        }),
+      ),
+    );
+
+    expect(payload.status).toBe("ready");
+    expect(payload.provenance).toMatchObject({
+      commit_sha: "provider-sha",
+      image_ref: "example.com/provider@sha256:abc",
+      provider_bundle_version: "bundle-v1",
+    });
+    expect(payload.provider_bundle).toMatchObject({
+      schema_version: 1,
+      bundle_version: "fixture-bundle-v1",
+      record_count: 2,
+    });
+  });
 });

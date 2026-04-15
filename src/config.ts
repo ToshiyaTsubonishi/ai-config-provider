@@ -3,9 +3,13 @@ import path from "node:path";
 export interface ProviderRuntimeConfig {
   providerRoot: string;
   recordsPath: string;
+  bundleMetadataPath: string;
   selectorToolDetailUrl?: string;
   selectorReadyUrl?: string;
   selectorBearerToken?: string;
+  provenanceCommitSha?: string;
+  provenanceImage?: string;
+  providerBundleVersion?: string;
   port: number;
 }
 
@@ -47,11 +51,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ProviderRuntim
     trimEnv(env.AI_CONFIG_RECORDS_PATH)
       ?? path.join(providerRoot, ".index", "records.json"),
   );
+  const bundleMetadataPath = path.resolve(
+    trimEnv(env.AI_CONFIG_PROVIDER_BUNDLE_METADATA_PATH)
+      ?? path.join(providerRoot, ".index", "provider-bundle-metadata.json"),
+  );
   const selectorBaseUrl = deriveSelectorBaseUrl(env);
 
   return {
     providerRoot,
     recordsPath,
+    bundleMetadataPath,
     selectorToolDetailUrl:
       trimEnv(env.AI_CONFIG_SELECTOR_TOOL_DETAIL_URL)
       ?? (selectorBaseUrl ? `${selectorBaseUrl}/catalog/tool-detail` : undefined),
@@ -59,6 +68,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ProviderRuntim
       trimEnv(env.AI_CONFIG_SELECTOR_READY_URL)
       ?? (selectorBaseUrl ? `${selectorBaseUrl}/readyz` : undefined),
     selectorBearerToken: trimEnv(env.AI_CONFIG_SELECTOR_BEARER_TOKEN),
+    provenanceCommitSha: trimEnv(env.AI_CONFIG_DEPLOY_COMMIT_SHA),
+    provenanceImage: trimEnv(env.AI_CONFIG_DEPLOY_IMAGE),
+    providerBundleVersion: trimEnv(env.AI_CONFIG_PROVIDER_BUNDLE_VERSION),
     port: parsePort(env.PORT),
   };
 }

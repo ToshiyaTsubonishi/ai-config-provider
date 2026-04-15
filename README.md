@@ -51,6 +51,8 @@ npm run bundle:from-ai-config -- --ai-config-dir ../ai-config --output-dir provi
 ```
 
 この script は `../ai-config/.index/records.json` を読み、`source_path` に出てくる file / directory を `provider-bundle/` にそのまま写します。
+同時に `provider-bundle/.index/provider-bundle-metadata.json` を生成し、`bundle_version` と
+source `ai-config` commit SHA を残します。
 
 ## Local Run
 
@@ -104,3 +106,45 @@ gcloud run deploy ai-config-provider-mcpo \
 ```
 
 そのうえで Open WebUI には `https://ai-config-provider-mcpo-xxxxx.run.app/openapi.json` を bearer 認証つき tool server として登録します。Cloud Run 全体の wiring は `../ai-config/deploy/cloudrun/README.md` を参照してください。
+
+## GHCR Release Path
+
+production 側で build や login ができない場合は、`../ai-config` 側の
+`deploy/cloudrun/release/publish_ghcr_release.py` から selector/provider をまとめて
+GHCR publish します。
+
+この flow では:
+
+1. `ai-config-provider` で `provider-bundle` を materialize する
+2. `provider-bundle-metadata.json` から `bundle_version` を読む
+3. `ai-config-provider` image を GHCR に push する
+4. digest / commit SHA / bundle version を release manifest に出す
+
+Cloud Run には、manifest に出た `ghcr.io/...@sha256:...` をそのまま渡してください。
+
+## Separate-Project Staging
+
+`abiding-aspect-457603-m8` のような separate-project staging では、
+`../ai-config/deploy/cloudrun/staging/` の renderer を使って service YAML と
+tool-server secret payload を生成します。
+
+基本フロー:
+
+```bash
+cd ../ai-config
+python deploy/cloudrun/staging/render_stack.py \
+  --config deploy/cloudrun/staging/stack.example.yaml \
+  --output-dir deploy/cloudrun/staging/rendered
+```
+
+そのうえで provider image はいつもどおり `provider-bundle` を materialize して build します。
+
+```bash
+cd ../ai-config-provider
+npm install
+npm run bundle:from-ai-config -- --ai-config-dir ../ai-config --output-dir provider-bundle
+docker build -t ai-config-provider:local .
+```
+
+render 済み `ai-config-provider.service.yaml` には staging selector URL が入り、
+`open-webui.tool-server-connections.json` には provider 用 MCPO 接続が含まれます。

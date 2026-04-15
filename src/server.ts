@@ -1,9 +1,11 @@
 import express from "express";
+import fs from "node:fs/promises";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import { loadConfig, type ProviderRuntimeConfig } from "./config.js";
 import { createProviderMcpServer } from "./mcp-server.js";
 import { ToolRecordResolver } from "./record-resolver.js";
+import type { ProviderBundleMetadata } from "./types.js";
 
 function cleanupServer(server: unknown) {
   if (!server || typeof server !== "object" || !("close" in server)) {
@@ -31,9 +33,45 @@ function methodNotAllowed(res: express.Response) {
   });
 }
 
+async function readProviderBundleMetadata(
+  config: ProviderRuntimeConfig,
+): Promise<ProviderBundleMetadata | null> {
+  try {
+    const raw = await fs.readFile(config.bundleMetadataPath, "utf-8");
+    return JSON.parse(raw) as ProviderBundleMetadata;
+  } catch {
+    return null;
+  }
+}
+
+function deploymentProvenance(config: ProviderRuntimeConfig, metadata: ProviderBundleMetadata | null) {
+  const payload: Record<string, unknown> = {};
+  if (config.provenanceCommitSha) {
+    payload.commit_sha = config.provenanceCommitSha;
+  }
+  if (config.provenanceImage) {
+    payload.image_ref = config.provenanceImage;
+  }
+  if (process.env.K_SERVICE) {
+    payload.service = process.env.K_SERVICE;
+  }
+  if (process.env.K_REVISION) {
+    payload.revision = process.env.K_REVISION;
+  }
+  if (process.env.K_CONFIGURATION) {
+    payload.configuration = process.env.K_CONFIGURATION;
+  }
+  const bundleVersion = config.providerBundleVersion ?? metadata?.bundle_version;
+  if (bundleVersion) {
+    payload.provider_bundle_version = bundleVersion;
+  }
+  return payload;
+}
+
 export async function buildReadinessPayload(resolver: ToolRecordResolver) {
   const selector = await resolver.selectorStatus();
   const localIndexAvailable = await resolver.localIndexAvailable();
+  const bundleMetadata = await readProviderBundleMetadata(resolver.config);
   const providerRootExists = await import("node:fs/promises")
     .then((fs) => fs.access(resolver.config.providerRoot).then(() => true).catch(() => false));
 
@@ -41,18 +79,27 @@ export async function buildReadinessPayload(resolver: ToolRecordResolver) {
     providerRootExists
     && (selector.status === "ok" || selector.status === "skipped" || localIndexAvailable);
 
-  return {
+  const payload: Record<string, unknown> = {
     status: ready ? "ready" : "not_ready",
     surface: "ai-config-provider",
     provider_root: resolver.config.providerRoot,
     provider_root_exists: providerRootExists,
     records_path: resolver.config.recordsPath,
+    bundle_metadata_path: resolver.config.bundleMetadataPath,
     local_index_available: localIndexAvailable,
     selector,
     record_resolution_order: resolver.config.selectorToolDetailUrl
       ? ["selector_http", "local_index"]
       : ["local_index"],
   };
+  const provenance = deploymentProvenance(resolver.config, bundleMetadata);
+  if (Object.keys(provenance).length > 0) {
+    payload.provenance = provenance;
+  }
+  if (bundleMetadata) {
+    payload.provider_bundle = bundleMetadata;
+  }
+  return payload;
 }
 
 export function createProviderApp(options: {

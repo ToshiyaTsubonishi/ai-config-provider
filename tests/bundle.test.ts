@@ -37,5 +37,15 @@ describe("materializeProviderBundle", () => {
       await fs.readFile(path.join(outputDir, ".index", "records.json"), "utf-8"),
     );
     expect(copiedRecords).toHaveLength(2);
+
+    const metadata = JSON.parse(
+      await fs.readFile(path.join(outputDir, ".index", "provider-bundle-metadata.json"), "utf-8"),
+    );
+    expect(metadata.schema_version).toBe(1);
+    expect(metadata.record_count).toBe(2);
+    expect(metadata.records_sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(metadata.bundle_version).toMatch(/^[a-z0-9-]+$/);
+    expect(result.metadataPath).toBe(path.join(outputDir, ".index", "provider-bundle-metadata.json"));
+    expect(result.bundleVersion).toBe(metadata.bundle_version);
   });
 });

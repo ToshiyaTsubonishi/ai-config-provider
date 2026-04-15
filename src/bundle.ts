@@ -1,4 +1,6 @@
 import fs from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import path from "node:path";
 
 import type { ToolRecord } from "./types.js";
@@ -14,6 +16,9 @@ export interface MaterializeProviderBundleResult {
   copiedPaths: string[];
   missingPaths: string[];
   recordsPath: string;
+  metadataPath: string;
+  bundleVersion: string;
+  sourceAiConfigCommitSha?: string;
 }
 
 async function pathExists(targetPath: string): Promise<boolean> {
@@ -22,6 +27,17 @@ async function pathExists(targetPath: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+function detectGitHead(repoDir: string): string | undefined {
+  try {
+    return execFileSync("git", ["-C", repoDir, "rev-parse", "HEAD"], {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
   }
 }
 
@@ -40,6 +56,27 @@ export async function materializeProviderBundle(
 
   await fs.mkdir(path.join(outputDir, ".index"), { recursive: true });
   await fs.writeFile(path.join(outputDir, ".index", "records.json"), rawRecords, "utf-8");
+  const sourceAiConfigCommitSha = detectGitHead(aiConfigDir);
+  const recordsSha256 = createHash("sha256").update(rawRecords).digest("hex");
+  const bundleVersion = `${(sourceAiConfigCommitSha ?? "unknown").slice(0, 12)}-${recordsSha256.slice(0, 12)}`;
+  const metadataPath = path.join(outputDir, ".index", "provider-bundle-metadata.json");
+  await fs.writeFile(
+    metadataPath,
+    JSON.stringify(
+      {
+        schema_version: 1,
+        generated_at: new Date().toISOString(),
+        source_ai_config_dir: aiConfigDir,
+        source_ai_config_commit_sha: sourceAiConfigCommitSha,
+        record_count: records.length,
+        records_sha256: recordsSha256,
+        bundle_version: bundleVersion,
+      },
+      null,
+      2,
+    ) + "\n",
+    "utf-8",
+  );
 
   const copied = new Set<string>();
   const missing = new Set<string>();
@@ -72,5 +109,8 @@ export async function materializeProviderBundle(
     copiedPaths: [...copied].sort(),
     missingPaths: [...missing].sort(),
     recordsPath: path.join(outputDir, ".index", "records.json"),
+    metadataPath,
+    bundleVersion,
+    sourceAiConfigCommitSha,
   };
 }
